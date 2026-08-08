@@ -1,0 +1,5 @@
+{
+  "name": "silt-react",
+  "version": "0.3.0",
+  "peerDependencies": { "react": "^18.0.0", "silt": "*" }
+}
