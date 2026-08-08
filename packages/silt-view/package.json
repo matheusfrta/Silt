@@ -1,0 +1,6 @@
+{
+  "name": "silt-view",
+  "version": "0.4.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts"
+}

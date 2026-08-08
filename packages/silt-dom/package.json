@@ -1,0 +1,11 @@
+{
+  "name": "silt-dom",
+  "version": "0.4.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./jsx-runtime": "./dist/jsx-runtime.js",
+    "./jsx-dev-runtime": "./dist/jsx-runtime.js"
+  }
+}
