@@ -16,6 +16,8 @@ export class Signal<T> extends Node {
     set(val: T) {
         if (this.val !== val) {
             this.val = val;
+            if (eng.hooks.onSet) eng.hooks.onSet(this.id, val);
+            
             for (const o of this.obs) {
                 o.state = 2;
                 if (!eng.q.includes(o)) eng.q.push(o);
@@ -72,6 +74,7 @@ export class Effect extends Node {
     constructor(fn: () => void) {
         super();
         this.fn = fn;
+        eng.roots.add(this);
         this.update();
     }
 
@@ -87,5 +90,11 @@ export class Effect extends Node {
         } finally {
             eng.active = prev;
         }
+    }
+
+    stop() {
+        eng.roots.delete(this);
+        for (const s of this.src) s.obs.delete(this);
+        this.src.clear();
     }
 }

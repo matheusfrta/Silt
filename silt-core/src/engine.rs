@@ -1,10 +1,12 @@
 use std::collections::HashSet;
 use std::cell::RefCell;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 thread_local! {
     pub static ENG: RefCell<Engine> = RefCell::new(Engine::new());
 }
+
+pub type Cb = Rc<RefCell<dyn FnMut()>>;
 
 pub struct Node {
     pub id: usize,
@@ -12,7 +14,8 @@ pub struct Node {
     pub src: HashSet<usize>,
     pub depth: usize,
     pub state: u8,
-    pub cb: Option<Rc<RefCell<dyn FnMut()>>>,
+    pub cb: Option<Cb>,
+    pub weak: bool,
 }
 
 pub struct Engine {
@@ -20,11 +23,12 @@ pub struct Engine {
     pub active: Option<usize>,
     pub batch: usize,
     pub q: Vec<usize>,
+    pub roots: HashSet<usize>,
 }
 
 impl Engine {
     pub fn new() -> Self {
-        Self { nodes: vec![], active: None, batch: 0, q: vec![] }
+        Self { nodes: vec![], active: None, batch: 0, q: vec![], roots: HashSet::new() }
     }
 
     pub fn add(&mut self) -> usize {
@@ -35,7 +39,8 @@ impl Engine {
             src: HashSet::new(), 
             depth: 0, 
             state: 0, 
-            cb: None 
+            cb: None,
+            weak: false,
         });
         id
     }

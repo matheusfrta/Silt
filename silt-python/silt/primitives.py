@@ -1,4 +1,4 @@
-from .engine import Node, eng, link, propagate
+from .engine import Node, eng, link, propagate, emit
 
 class Signal(Node):
     def __init__(self, val):
@@ -12,7 +12,9 @@ class Signal(Node):
     def set(self, val):
         if self.val != val:
             self.val = val
-            for o in self.obs:
+            emit('set', self.id, val)
+            # weakset iteration needs list copy
+            for o in list(self.obs):
                 o.state = 2
                 if o not in eng.q:
                     eng.q.append(o)
@@ -42,7 +44,7 @@ class Computed(Node):
         if old != new_val or self.dirty:
             self.val = new_val
             self.dirty = False
-            for o in self.obs:
+            for o in list(self.obs):
                 o.state = 2
                 if o not in eng.q:
                     eng.q.append(o)
@@ -57,6 +59,7 @@ class Effect(Node):
     def __init__(self, fn):
         super().__init__()
         self.fn = fn
+        eng.roots.add(self)
         self.update()
 
     def update(self):
@@ -71,3 +74,9 @@ class Effect(Node):
             self.fn()
         finally:
             eng.active = prev
+            
+    def stop(self):
+        eng.roots.discard(self)
+        for s in self.src:
+            s.obs.discard(self)
+        self.src.clear()

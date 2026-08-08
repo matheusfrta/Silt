@@ -1,24 +1,37 @@
 import { Signal } from './primitives';
 
 export function createStore<T extends object>(init: T): T {
-    const sigs: Record<string | symbol, Signal<any>> = {};
-    
-    for (const key of Object.keys(init)) {
-        sigs[key] = new Signal((init as any)[key]);
-    }
+    const raw = Array.isArray(init) ? [] : {};
+    const sigs: Map<string | symbol, Signal<any>> = new Map();
 
-    return new Proxy(init, {
+    const handler: ProxyHandler<any> = {
         get(t, p) {
-            if (sigs[p]) return sigs[p].get();
-            return Reflect.get(t, p);
+            if (!sigs.has(p)) {
+                let v = Reflect.get(t, p);
+                if (typeof v === 'object' && v !== null) {
+                    v = createStore(v);
+                    Reflect.set(t, p, v);
+                }
+                sigs.set(p, new Signal(v));
+            }
+            return sigs.get(p)!.get();
         },
         set(t, p, val) {
-            if (sigs[p]) {
-                sigs[p].set(val);
+            let v = val;
+            if (typeof v === 'object' && v !== null) {
+                v = createStore(v);
+            }
+            Reflect.set(t, p, v);
+            
+            if (sigs.has(p)) {
+                sigs.get(p)!.set(v);
             } else {
-                sigs[p] = new Signal(val);
+                sigs.set(p, new Signal(v));
             }
             return true;
         }
-    });
+    };
+
+    Object.assign(raw, init);
+    return new Proxy(raw, handler);
 }

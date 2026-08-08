@@ -1,8 +1,8 @@
 export class Node {
     static _id = 0;
     id: number;
-    obs: Set<Node> = new Set();
-    src: Set<Node> = new Set();
+    obs = new Set<Node>(); 
+    src = new Set<Node>();
     depth = 0;
     state = 0;
 
@@ -15,7 +15,12 @@ export class Node {
 export const eng = {
     active: null as Node | null,
     batch: 0,
-    q: [] as Node[]
+    q: [] as Node[],
+    hooks: {
+        onLink: null as ((src: number, obs: number) => void) | null,
+        onSet: null as ((id: number, val: any) => void) | null,
+    },
+    roots: new Set<Node>()
 };
 
 export function propagate() {
@@ -42,14 +47,12 @@ export function link(n: Node) {
             eng.active.src.add(n);
             n.obs.add(eng.active);
             eng.active.depth = Math.max(eng.active.depth, n.depth + 1);
+            if (eng.hooks.onLink) eng.hooks.onLink(n.id, eng.active.id);
         }
     }
 }
 
-export function batchStart() {
-    eng.batch++;
-}
-
+export function batchStart() { eng.batch++; }
 export function batchEnd() {
     eng.batch--;
     if (eng.batch === 0) propagate();

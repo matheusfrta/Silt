@@ -1,9 +1,11 @@
+import weakref
+
 class Node:
     _id = 0
     def __init__(self):
         self.id = Node._id
         Node._id += 1
-        self.obs = set()
+        self.obs = weakref.WeakSet()
         self.src = set()
         self.depth = 0
         self.state = 0
@@ -16,8 +18,15 @@ class Engine:
         self.active = None
         self.batch = 0
         self.q = []
+        self.roots = set()
+        self.hooks = {}
 
 eng = Engine()
+
+def emit(ev, *args):
+    if ev in eng.hooks:
+        for h in eng.hooks[ev]:
+            h(*args)
 
 def propagate():
     if eng.batch > 0: 
@@ -41,6 +50,7 @@ def link(n):
             eng.active.src.add(n)
             n.obs.add(eng.active)
             eng.active.depth = max(eng.active.depth, n.depth + 1)
+            emit('link', n.id, eng.active.id)
 
 def batch_start():
     eng.batch += 1

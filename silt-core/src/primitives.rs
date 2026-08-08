@@ -40,8 +40,53 @@ impl<T: Clone + PartialEq + 'static> Signal<T> {
     }
 }
 
+pub struct Computed<T> {
+    pub id: usize,
+    val: Rc<RefCell<Option<T>>>,
+}
+
+impl<T: Clone + PartialEq + 'static> Computed<T> {
+    pub fn new<F: FnMut() -> T + 'static>(mut f: F) -> Self {
+        let id = ENG.with(|e| e.borrow_mut().add());
+        let val = Rc::new(RefCell::new(None));
+        let val_clone = val.clone();
+
+        let cb = Rc::new(RefCell::new(move || {
+            ENG.with(|e| {
+                let mut e = e.borrow_mut();
+                let srcs = e.nodes[id].src.clone();
+                for s in srcs {
+                    e.nodes[s].obs.remove(&id);
+                }
+                e.nodes[id].src.clear();
+                e.active = Some(id);
+            });
+            let new_val = f();
+            *val_clone.borrow_mut() = Some(new_val);
+            ENG.with(|e| {
+                let mut e = e.borrow_mut();
+                e.active = None;
+                let obs = e.nodes[id].obs.clone();
+                for o in obs {
+                    e.nodes[o].state = 2;
+                    if !e.q.contains(&o) { e.q.push(o); }
+                }
+            });
+        }));
+
+        ENG.with(|e| e.borrow_mut().nodes[id].cb = Some(cb.clone()));
+        cb.borrow_mut()();
+        Self { id, val }
+    }
+
+    pub fn get(&self) -> T {
+        link(self.id);
+        self.val.borrow().as_ref().unwrap().clone()
+    }
+}
+
 pub struct Effect {
-    id: usize,
+    pub id: usize,
 }
 
 impl Effect {
@@ -62,9 +107,25 @@ impl Effect {
             ENG.with(|e| e.borrow_mut().active = None);
         }));
 
-        ENG.with(|e| e.borrow_mut().nodes[id].cb = Some(cb.clone()));
-        cb.borrow_mut()();
+        ENG.with(|e| {
+            let mut e = e.borrow_mut();
+            e.nodes[id].cb = Some(cb.clone());
+            e.roots.insert(id);
+        });
         
+        cb.borrow_mut()();
         Self { id }
+    }
+
+    pub fn stop(&self) {
+        ENG.with(|e| {
+            let mut e = e.borrow_mut();
+            e.roots.remove(&self.id);
+            let srcs = e.nodes[self.id].src.clone();
+            for s in srcs {
+                e.nodes[s].obs.remove(&self.id);
+            }
+            e.nodes[self.id].src.clear();
+        });
     }
 }
